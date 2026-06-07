@@ -16,6 +16,8 @@ To Clone the Git Repository:
 cd ~
 git clone https://github.com/8Bz-113/Intern-Project-Submission-Humanoid-.git
 ```
+This will create a folder called 'Intern-Project-Submission-Humanoid-' in your home directory
+
 Then to run the script:
 ```text
 cd ~/Intern-Project-Submission-Humanoid- 
