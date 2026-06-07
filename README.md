@@ -1,9 +1,14 @@
-# Intern-Project-Submission-Humanoid-
-Intern Project Github Repository for Abhinav Mayura Application to Humanoid AI
+# Humanoid AI Intern Project Submission
 
-Instructions for Ubuntu
+GitHub repository for **Abhinav Mayura's application to Humanoid AI**.
 
-To clone the repo into your home folder:
+## Requirements
+
+- Ubuntu
+- NVIDIA Isaac Sim installed at:
+
+```text
+~/isaacsim
 
 cd ~
 git clone https://github.com/8Bz-113/Intern-Project-Submission-Humanoid-.git
