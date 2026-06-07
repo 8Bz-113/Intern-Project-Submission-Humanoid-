@@ -11,7 +11,7 @@ from dataclasses import dataclass
 import numpy as np
 from isaacsim import SimulationApp
 
-# Isaac Sim must be created before importing Isaac modules.
+#create isaacsim
 simulation_app = SimulationApp({
     "headless": False,
     "disable_viewport_updates": False,
@@ -56,6 +56,7 @@ YCB_PROP_PATHS = {
     "025_mug": "./assets/ycb/_25_mug.usd",
 }
 
+#masses
 YCB_MASSES = {
     "006_mustard_bottle": 0.60,
     "007_tuna_fish_can": 0.17,
@@ -64,6 +65,7 @@ YCB_MASSES = {
     "025_mug": 0.35,
 }
 
+#friction coeffs 
 YCB_FRICTION = {
     "006_mustard_bottle": 0.60,
     "007_tuna_fish_can": 0.40,
@@ -100,22 +102,16 @@ RETREAT_STEPS = 100
 SLIP_CONFIRMATION_TIME = 1.0
 SLIP_CONFIRMATION_STEPS = int(SLIP_CONFIRMATION_TIME / DT)
 
-# 360-orbit phase controlled by RL residual actions.
-# The object is carried at a fixed transport height while the base-side joints
-# move the arm through one full orbit around the robot base. At the same time,
-# the wrist roll joint is rotated through 360 degrees.
 ORBIT_STEPS = 420
 ORBIT_Z = 0.40
 ORBIT_RADIUS = 0.15
 ORBIT_CENTER = np.array([0.30, 0.0, ORBIT_Z])
 
 # Cartesian residual during orbit: [dx, dy, dz] in metres.
-# Wrist roll remains disabled and is not part of the learned action.
 ACTION_LOW = np.array([-0.12, -0.12, -0.08])
 ACTION_HIGH = np.array([0.12, 0.12, 0.08])
 
 # Uncertainty source: state noise, small action noise, control delay, and occasional unreachable desired point.
-# Keep action noise low during orbit because high frame-to-frame residual noise causes jerky joint commands.
 STATE_NOISE_STD = 0.000002
 ACTION_NOISE_STD = 0.000002
 CONTROL_DELAY_STEPS = 2
@@ -129,7 +125,7 @@ UNREACHABLE_SHIFT = np.array([0.16, 0.12, 0.0])
 
 # Each episode starts with the current
 # target grip force. The target begins at 10 N and is increased only when
-# the episode fails or receives excessive penalties.
+# the episode fails due to missed pick or slip
 ADAPTIVE_GRIP_FORCE_START = 10.0
 ADAPTIVE_GRIP_FORCE_MIN = 10.0
 ADAPTIVE_GRIP_FORCE_MAX = 60.0
@@ -151,7 +147,7 @@ PLACE_LIFT_STEPS = 70
 PLACE_HOME_STEPS = 80
 
 # A trajectory is considered successful when the average orbit tracking
-# accuracy is at least 80/100, i.e. within 5% of the requested 360 path.
+# accuracy is at least 80/100, i.e. within 10% of the requested 360 path.
 TARGET_MEAN_ERROR = 0.10
 TRAJECTORY_SUCCESS_SCORE = 80.0
 REQUIRED_CONSECUTIVE_SUCCESSES = 3
