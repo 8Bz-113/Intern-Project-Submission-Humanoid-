@@ -36,5 +36,5 @@ It will also create a file called episode_summary.csv which contains high level 
 
 The script will terminate automatically upon 3 successful runs. This can take between ~15-30minutes. 
 
-A video explaining the mechanism of the system is provided below:
+A video explaining the mechanism of the system is provided here:
 https://youtu.be/OX2dDgMpsKg 
