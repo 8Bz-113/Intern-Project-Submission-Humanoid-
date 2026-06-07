@@ -25,3 +25,5 @@ cd ~/Intern-Project-Submission-Humanoid-
 ```
 Running the script will create a folder called rl_orbit_logs, which contains csv. files containng data for each episode.
 It will also create a file called episode_summary.csv which contains high level episode-by-episode data for the simulation.
+
+The script will terminate automatically upon 3 sucessful runs. This can take between ~15-30minutes. 
