@@ -31,9 +31,7 @@ sys.path.append(os.path.dirname(__file__))
 from controller import RobotType, TrossenAIController  # noqa: E402
 
 
-# =============================================================================
 # Scene / robot configuration
-# =============================================================================
 
 ROBOT_USD_PATH = "./assets/robots/wxai/wxai_base.usd"
 ROBOT_SCENE_PATH = "/World/wxai_robot"
@@ -78,9 +76,7 @@ YCB_ORIENTATION_OFFSETS = {
     "006_mustard_bottle": [0.707, 0.707, 0.0, 0.0],
 }
 
-# =============================================================================
 # Task / RL configuration
-# =============================================================================
 
 DT = 1.0 / 60.0
 MIN_SAFE_Z = 0.28
@@ -89,7 +85,7 @@ APPROACH_OFFSET = np.array([0.0, 0.0, 0.012])
 PLACE_OFFSET = np.array([0.0, 0.0, 0.045])
 HOME_POSITION = np.array([0.2, 0.0, 0.3])
 
-# Timed non-RL phases.
+# Timed non-RL phases. (Keyframe Times)
 MOVE_ABOVE_STEPS = 80
 DESCEND_STEPS = 50
 GRASP_STEPS = 60
@@ -131,8 +127,8 @@ MAX_WRIST_JOINT_STEP = 0.012
 UNREACHABLE_PROBABILITY = 0.00
 UNREACHABLE_SHIFT = np.array([0.16, 0.12, 0.0])
 
-# Adaptive grip-force curriculum. Each episode starts with the current
-# target grip force. The target begins at 1 N and is increased only when
+# Each episode starts with the current
+# target grip force. The target begins at 10 N and is increased only when
 # the episode fails or receives excessive penalties.
 ADAPTIVE_GRIP_FORCE_START = 10.0
 ADAPTIVE_GRIP_FORCE_MIN = 10.0
@@ -146,6 +142,7 @@ PLACE_HOVER_Z = 0.40
 PLACE_RELEASE_Z = 0.115
 PLACE_LIFT_Z = 0.28
 
+# Timings for Placement step
 PLACE_APPROACH_STEPS = 80
 PLACE_DESCEND_STEPS = 80
 PLACE_SETTLE_STEPS = 30
@@ -159,12 +156,14 @@ TARGET_MEAN_ERROR = 0.10
 TRAJECTORY_SUCCESS_SCORE = 80.0
 REQUIRED_CONSECUTIVE_SUCCESSES = 3
 
+# Overall Workspace Safe limits to spawn pick object
 WORKSPACE_LIMITS = {
     "x": [(-0.40, -0.12), (0.12, 0.40)],
     "y": [(-0.30, -0.10), (0.10, 0.30)],
     "z": (0.10, 0.60),
 }
 
+# Always aplce in the same location
 PLACE_LOCATIONS = [
     np.array([0.30, 0.0, 0.03]),
 ]
@@ -177,7 +176,7 @@ class StepResult:
     done: bool
     info: dict
 
-
+#Rl Policy
 
 class ResidualRLPolicy:
     """Cartesian residual learner using the completed episode mean error."""
@@ -222,14 +221,14 @@ class ResidualRLPolicy:
             self.last_learning_rate = 0.0
             self.last_average_error = float("nan")
             return
-
+        # Bigger Error = Higher Learning Rate
         if mean_error >= 0.16:
             learning_rate = self.large_error_learning_rate
         elif mean_error >= 0.13:
             learning_rate = self.moderate_error_learning_rate
         else:
             learning_rate = self.small_error_learning_rate
-
+        #Lower Error = Lower Learning Rate
         self.last_learning_rate = float(learning_rate)
         self.last_average_error = float(mean_error)
 
@@ -256,7 +255,7 @@ class WXAIOrbit360RLEnv:
     generated through the lower arm joints, while the wrist joints are held
     near their entry posture. RL learns lower-joint/wrist residual corrections and smoothness. Grip force is adapted between episodes, then locked during the orbit.
     """
-
+    # Declaring Variables 
     def __init__(self):
         self.robot = None
         self.tactile = None
@@ -333,10 +332,9 @@ class WXAIOrbit360RLEnv:
         self.mean_residual_magnitude = 0.0
         self.max_residual_magnitude = 0.0
 
-    # -------------------------------------------------------------------------
-    # Scene setup
-    # -------------------------------------------------------------------------
 
+    # Scene setup
+    # Add arm and objects to scene
     def setup_scene(self) -> None:
         stage_utils.create_new_stage(template="sunlight")
 
@@ -365,6 +363,7 @@ class WXAIOrbit360RLEnv:
         self.spawn_ycb_objects()
         self.create_contact_sensor()
 
+    # Spawns YCB objects at the stage of the sim in the parking area
     def spawn_ycb_objects(self) -> None:
         stage = get_current_stage()
         define_prim("/World/YCB", "Xform")
@@ -393,7 +392,7 @@ class WXAIOrbit360RLEnv:
             )
 
             self.object_pool[name] = obj
-
+    # Create the contact sensor to know when to stop closing arm. 
     def create_contact_sensor(self) -> None:
         mesh_path = GRIPPER_LINK_PATH + "/collisions/gripper_right/node_STL_BINARY_/mesh"
         prim = get_prim_at_path(mesh_path)
@@ -413,9 +412,8 @@ class WXAIOrbit360RLEnv:
             prim_path="/World/wxai_robot/gripper_right/gripper_right/contact_sensor"
         )
 
-    # -------------------------------------------------------------------------
-    # Reset / object handling
-    # -------------------------------------------------------------------------
+
+    # Episode must be reset after P&P movement 
 
     def reset_env(self) -> np.ndarray:
         self.episode_id += 1
@@ -468,6 +466,7 @@ class WXAIOrbit360RLEnv:
 
         return self.get_observation(desired_pos=ORBIT_CENTER)
 
+    # When YCB objects are spawned and reset they are returned to the parking area 
     def park_all_objects(self) -> None:
         for i, name in enumerate(self.object_order):
             orientation = np.array([YCB_ORIENTATION_OFFSETS.get(name, [0.0, 0.0, 0.0, 1.0])])
@@ -477,6 +476,8 @@ class WXAIOrbit360RLEnv:
                 orientations=orientation,
             )
 
+    # The system picks a random section from the workplace limits to spawn the objects
+    # Z is always 0.03 however
     def sample_pick_position(self) -> np.ndarray:
         x_ranges = WORKSPACE_LIMITS["x"]
         y_ranges = WORKSPACE_LIMITS["y"]
@@ -484,17 +485,14 @@ class WXAIOrbit360RLEnv:
         y = np.random.uniform(*random.choice(y_ranges))
         return np.array([x, y, 0.03])
 
-    # -------------------------------------------------------------------------
     # Trajectory generation
-    # -------------------------------------------------------------------------
-
-
     def build_preplanned_pick_trajectory(self) -> None:
         _, current_ee_pos, _ = self.robot.get_current_state()
         current_ee_pos = np.array(current_ee_pos[0])
 
         object_pos = self.active_object.get_world_poses()[0].numpy().flatten()
 
+        # Key frames, pick, move to home, circle movement, place, then return to home 
         key_frames = [
             current_ee_pos,
             np.array([object_pos[0], object_pos[1], current_ee_pos[2] + 0.06]),
@@ -504,6 +502,7 @@ class WXAIOrbit360RLEnv:
             self.orbit_start_position(),
         ]
 
+        #Time steps for each keyframe
         segment_steps = [
             MOVE_ABOVE_STEPS,
             DESCEND_STEPS,
@@ -514,13 +513,8 @@ class WXAIOrbit360RLEnv:
 
         self.preplanned_trajectory = self.interpolate_waypoints(key_frames, segment_steps)
 
+    # Place has a seperate trajectory to keep the palce movement safe
     def build_place_trajectory(self) -> None:
-        """Build a gentle scripted placement path.
-
-        The object is first moved horizontally at its current height, then lowered
-        vertically at the place location. This avoids dragging/throwing the object
-        during the transition from orbit to place.
-        """
         _, current_ee_pos, _ = self.robot.get_current_state()
         current_ee_pos = np.array(current_ee_pos[0], dtype=np.float64)
 
@@ -583,6 +577,7 @@ class WXAIOrbit360RLEnv:
         )
         self.preplanned_index = 0
 
+    # build way points to know how to get to end position
     def interpolate_waypoints(self, key_frames: list[np.ndarray], segment_steps: list[int]) -> list[np.ndarray]:
         if len(key_frames) != len(segment_steps) + 1:
             raise ValueError("Expected len(key_frames) = len(segment_steps) + 1")
@@ -623,8 +618,8 @@ class WXAIOrbit360RLEnv:
         trajectory.append(np.array(key_frames[-1], dtype=np.float64))
         return trajectory
 
+    #Desired end-effector position for one complete reachable 360-degree circle
     def desired_orbit_position(self, step: int) -> np.ndarray:
-        """Desired end-effector position for one complete reachable 360-degree circle."""
         theta = 2.0 * np.pi * step / max(ORBIT_STEPS - 1, 1)
         radius = getattr(self, "orbit_radius", ORBIT_RADIUS)
 
@@ -648,11 +643,7 @@ class WXAIOrbit360RLEnv:
             return 0.0
         return self.orbit_wrist_start
 
-    # -------------------------------------------------------------------------
     # RL step
-    # -------------------------------------------------------------------------
-
-
     def step(self, action: np.ndarray) -> StepResult:
         self.debug_phase()
 
@@ -731,6 +722,7 @@ class WXAIOrbit360RLEnv:
             self.orbit_tracking_errors.append(info["tracking_error"])
             self.orbit_rewards.append(reward)
 
+            # Add rewards
             self.reward_log.append([
                 self.episode_id,
                 self.active_object_name,
@@ -872,7 +864,7 @@ class WXAIOrbit360RLEnv:
         else:
             # After release, the path lifts vertically first, then returns home.
             pass
-        
+        #Debug
         #if self.preplanned_index % 30 == 0:
         #    print(
         #        f"[PLACE DEBUG] index={self.preplanned_index}/"
@@ -884,18 +876,9 @@ class WXAIOrbit360RLEnv:
 
         self.preplanned_index += 1
 
-    # -------------------------------------------------------------------------
     # Lower-joint + wrist 360 orbit control
-    # -------------------------------------------------------------------------
 
     def initialise_orbit_joint_posture(self) -> None:
-        """Capture the entry posture before the 360-orbit phase.
-
-        The orbit is driven primarily by the base-side joints: joint 0 rotates
-        around the robot base, while joints 1 and 2 compensate to keep the
-        object near a constant transport height. Joint 5, the wrist-roll joint,
-        is rotated through 360 degrees during the same phase.
-        """
         q = self.robot.get_dof_positions().numpy()[0].copy()
         self.orbit_joint_center = q[:6].copy()
         self.orbit_wrist_start = float(q[5])
@@ -911,9 +894,7 @@ class WXAIOrbit360RLEnv:
 
         theta = 2.0 * np.pi * step / max(ORBIT_STEPS - 1, 1)
 
-        # Joint 0 performs the main 360-degree base rotation. Joints 1 and 2
-        # provide a smooth height/reach compensation so the object is carried at
-        # centre height instead of dipping during the orbit.
+        # move the lower joints to get a smoother trajectory 
         lower_target = self.orbit_joint_center[:3] + np.array([
             0.65 * np.sin(theta),
             0.12 * np.sin(theta),
@@ -969,9 +950,7 @@ class WXAIOrbit360RLEnv:
 
         return smoothed_arm[:3], float(smoothed_arm[5])
 
-    # -------------------------------------------------------------------------
     # Observation / reward
-    # -------------------------------------------------------------------------
 
     def get_observation(self, desired_pos: np.ndarray) -> np.ndarray:
         _, ee_pos, ee_rot = self.robot.get_current_state()
@@ -996,7 +975,7 @@ class WXAIOrbit360RLEnv:
             qd,
         ]).astype(np.float64)
 
-
+    # add up all varaibles and generate reward variable
     def compute_reward(
         self,
         desired_pos: np.ndarray,
@@ -1077,7 +1056,7 @@ class WXAIOrbit360RLEnv:
             grip_penalty += (
                 force - MAX_GRIP_FORCE
             ) / MAX_GRIP_FORCE
-
+        # reward weights
         reward = (
             2.0
             - 20.0 * tracking_error
@@ -1087,7 +1066,7 @@ class WXAIOrbit360RLEnv:
             - 2.0 * grip_penalty
             - (8.0 if slip else 0.0)
         )
-
+        # send reward as a variable to be used elsewhere
         return reward, {
             "tracking_error": tracking_error,
             "smoothness_penalty": smoothness_penalty,
@@ -1097,6 +1076,7 @@ class WXAIOrbit360RLEnv:
             "target_grip_force": self.target_grip_force,
             "grip_penalty": grip_penalty,
         }
+        # prevent robot from hitting the ground 
     def clamp_workspace(self, pos: np.ndarray) -> np.ndarray:
         pos = np.array(pos, dtype=np.float64).copy()
         pos[0] = np.clip(pos[0], -0.45, 0.45)
@@ -1109,7 +1089,8 @@ class WXAIOrbit360RLEnv:
         if contact_data is None or "force" not in contact_data:
             return 0.0
         return float(np.linalg.norm(contact_data["force"]))
-    
+        
+    # DEBUG to check what keyframe the robot is in 
     def debug_phase(self) -> None:
         if self.phase != self.last_debug_phase:
             print(
@@ -1123,7 +1104,7 @@ class WXAIOrbit360RLEnv:
 
     def get_object_position(self) -> np.ndarray:
         return self.active_object.get_world_poses()[0].numpy().flatten()
-
+    
     def get_gripper_opening(self) -> float:
         dof_pos = self.robot.get_dof_positions().numpy()[0]
         return float(dof_pos[self.robot.gripper_dof_index])
@@ -1182,7 +1163,7 @@ class WXAIOrbit360RLEnv:
         self.prev_ee_pos = ee_pos.copy()
         return vel
 
-
+    # Compute score / 100, negative scores are allowed to better see improvement
     def compute_trajectory_score(self) -> tuple[float, float, float]:
         """Return trajectory quality relative to the 0.10 m mean-error goal.
 
@@ -1207,17 +1188,13 @@ class WXAIOrbit360RLEnv:
             score = float(min(score, 100.0))
 
         return score, mean_error, max_error
+        
     def compute_failure_severity(
         self,
         trajectory_score: float,
         average_reward: float,
     ) -> tuple[bool, int, str]:
-        """Classify failure and choose any grip-force increase.
 
-        Grip force is increased only for grasp failures: missed picks or
-        confirmed slips. Tracking-only failures are handled by the residual RL
-        policy and therefore return a grip increase of zero.
-        """
         if self.missed_pick:
             return True, 5, "missed pick"
 
@@ -1226,16 +1203,16 @@ class WXAIOrbit360RLEnv:
 
         if trajectory_score >= TRAJECTORY_SUCCESS_SCORE:
             return False, 0, "trajectory success"
-
-        if trajectory_score < 75.0:
+        
+        if trajectory_score < 60.0:
             return True, 0, "large tracking failure"
 
-        if trajectory_score < 90.0:
+        if trajectory_score < 70.0:
             return True, 0, "moderate tracking failure"
 
         return True, 0, "trajectory near miss"
 
-
+    # once the episode is over compute the rewards and new variables based on RL program
     def finalise_episode(self) -> None:
         """Save orbit metrics and adapt grip only for grasp failures."""
         trajectory_score, mean_error, max_error = self.compute_trajectory_score()
@@ -1273,7 +1250,8 @@ class WXAIOrbit360RLEnv:
             >= REQUIRED_CONSECUTIVE_SUCCESSES
         ):
             self.training_complete = True
-
+            
+        # print all variables so user can see improvement 
         self.episode_summary_log.append({
             "episode": self.episode_id,
             "object": self.active_object_name,
@@ -1307,7 +1285,7 @@ class WXAIOrbit360RLEnv:
             if np.isfinite(mean_error)
             else "N/A"
         )
-
+        # print to terminal 
         print(
             f"[SUMMARY]\n"
             f"episode={self.episode_id}\n"
@@ -1331,6 +1309,8 @@ class WXAIOrbit360RLEnv:
                 "[COMPLETE] Trajectory tracking was within 5% for "
                 "3 consecutive episodes."
             )
+
+    # save to csv file 
     def save_episode_summary_log(self) -> None:
         if len(self.episode_summary_log) == 0:
             return
@@ -1342,7 +1322,7 @@ class WXAIOrbit360RLEnv:
             writer.writeheader()
             writer.writerows(self.episode_summary_log)
 
-
+    # save to csv file
     def save_reward_log(self) -> None:
         if len(self.reward_log) == 0:
             return
@@ -1381,7 +1361,7 @@ class WXAIOrbit360RLEnv:
 
         print(f"[LOG] Saved RL 360 orbit episode: {path}")
 
-
+# main loop 
 def main() -> None:
     print("WidowX 360-Orbit Cartesian Residual Learning Task")
 
