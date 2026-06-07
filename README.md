@@ -34,7 +34,7 @@ Running the script will create a folder called rl_orbit_logs within the 'Intern-
 
 It will also create a file called episode_summary.csv which contains high level episode-by-episode data for the full simulation.
 
-The script will terminate automatically upon 3 successful runs. This can take between ~15-30minutes. 
+The script will terminate automatically upon 3 successful runs. This can take between ~15-30 minutes. 
 
 A video explaining the mechanism of the system is provided here:
 https://youtu.be/OX2dDgMpsKg 
