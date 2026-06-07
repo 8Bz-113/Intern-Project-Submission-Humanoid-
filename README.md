@@ -11,12 +11,12 @@ GitHub repository for **Abhinav Mayura's application to Humanoid AI**.
 ~/isaacsim
 ```
 
-To Clone the Git Repository:
+To Clone the Git Repository to your home directory:
 ```text
 cd ~
 git clone https://github.com/8Bz-113/Intern-Project-Submission-Humanoid-.git
 ```
-This will create a folder called 'Intern-Project-Submission-Humanoid-' in your home directory.
+This will create a folder called 'Intern-Project-Submission-Humanoid-'.
 
 Then to run the script:
 ```text
