@@ -30,9 +30,9 @@ If you have IsaacSim installed somewhere else, change:
 ```
 to the folder where IsaacSim is downloaded.
 
-Running the script will create a folder called rl_orbit_logs within 'Intern-Project-Submission-Humanoid-', which contains csv. files containing data for each episode.
+Running the script will create a folder called rl_orbit_logs within the 'Intern-Project-Submission-Humanoid-' folder, which contains csv. files containing data for each episode.
 
-It will also create a file called episode_summary.csv which contains high level episode-by-episode data for the simulation.
+It will also create a file called episode_summary.csv which contains high level episode-by-episode data for the full simulation.
 
 The script will terminate automatically upon 3 successful runs. This can take between ~15-30minutes. 
 
